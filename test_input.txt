@@ -1,0 +1,4 @@
+chat
+100
+Hello, world!
+quit
