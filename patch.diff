@@ -1,0 +1,76 @@
+<<<<<<< SEARCH
+import argparse
+import sys
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer
+=======
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+    model = AutoModelForCausalLM.from_pretrained(
+        model_id,
+        dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
+        device_map="auto" if torch.cuda.is_available() else None
+    )
+=======
+    model = AutoModelForCausalLM.from_pretrained(
+        model_id,
+        torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
+        device_map="auto" if torch.cuda.is_available() else None
+    )
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+    # 4. CLI Chat Loop
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    while True:
+        try:
+            user_input = input("You: ")
+            if user_input.lower() in ['quit', 'exit']:
+                break
+            if not user_input.strip():
+                continue
+
+            messages = [
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": user_input}
+            ]
+
+            text = tokenizer.apply_chat_template(
+=======
+    # 4. CLI Chat Loop
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    messages = [{"role": "system", "content": "You are a helpful assistant."}]
+
+    while True:
+        try:
+            user_input = input("You: ")
+            if user_input.lower() in ['quit', 'exit']:
+                break
+            if not user_input.strip():
+                continue
+
+            messages.append({"role": "user", "content": user_input})
+
+            text = tokenizer.apply_chat_template(
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+            print("AI: ", end="", flush=True)
+            for new_text in streamer:
+                print(new_text, end="", flush=True)
+            print("\n")
+
+        except KeyboardInterrupt:
+=======
+            print("AI: ", end="", flush=True)
+            full_response = ""
+            for new_text in streamer:
+                print(new_text, end="", flush=True)
+                full_response += new_text
+            print("\n")
+
+            messages.append({"role": "assistant", "content": full_response})
+
+        except KeyboardInterrupt:
+>>>>>>> REPLACE

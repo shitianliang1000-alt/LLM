@@ -1,0 +1,5 @@
+chat
+100
+Hello, what is 2+2?
+What was my previous question?
+quit
