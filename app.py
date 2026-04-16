@@ -1,30 +1,8 @@
+import os
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer
+from peft import PeftModel
 from threading import Thread
-
-class JESTDataSelector:
-    """
-    Mock implementation of JEST (Joint Example Selection for Training)
-    In a real scenario, this would use a reference model to score learnability of batches.
-    Here we recommend high-quality datasets based on the user's target domain.
-    """
-    def __init__(self):
-        self.datasets = {
-            "general": "wikitext (WikiText-103) - Good for general language understanding.",
-            "chat": "HuggingFaceH4/ultrachat_200k - Excellent for conversational AI.",
-            "code": "bigcode/starcoderdata - Large-scale high-quality code dataset.",
-            "math": "MetaMathQA - Great for reasoning and math problems."
-        }
-
-    def recommend(self, domain):
-        domain = domain.lower()
-        if domain in self.datasets:
-            print(f"[JEST Data Selector] Recommended dataset for '{domain}': {self.datasets[domain]}")
-            return self.datasets[domain]
-        else:
-            print("[JEST Data Selector] Domain not recognized. Defaulting to general data: wikitext")
-            return self.datasets["general"]
-
 
 class TurboQuantizer:
     """
@@ -39,24 +17,14 @@ class TurboQuantizer:
         if self.enable:
             print("[TurboQuant] Applying near-optimal KV cache quantization (3-bit keys, 2-bit values)...")
             # In a real implementation, we would patch the model's attention mechanism here
-            # e.g., model.config.kv_quantization = "turboquant"
             print("[TurboQuant] KV cache successfully compressed. Memory footprint reduced.")
         return model
 
 def main():
-    print("=== Local LLM Builder with JEST & TurboQuant ===")
+    print("=== Local LLM Execution with TurboQuant ===")
 
-    # 1. JEST Data Selection
-    print("\n--- Data Selection (JEST) ---")
-    print("Available domains: general, chat, code, math")
-    domain = input("Enter the domain for your training data: ").strip()
-
-    jest = JESTDataSelector()
-    selected_data = jest.recommend(domain)
-    print(f"Data selected: {selected_data}\n")
-
-    # 2. Configure Max Tokens
-    print("--- Model Configuration ---")
+    # 1. Configure Max Tokens
+    print("\n--- Model Configuration ---")
     try:
         max_tokens = int(input("Enter the maximum number of tokens for generation (e.g., 512): ").strip())
     except ValueError:
@@ -65,24 +33,34 @@ def main():
 
     print(f"Max tokens set to {max_tokens}\n")
 
-    # 3. Load Model with TurboQuant
-    model_id = "Qwen/Qwen1.5-0.5B-Chat" # Small model for quick local testing
+    # 2. Load Base Model and LoRA parameters
+    model_id = "Qwen/Qwen1.5-0.5B-Chat" # Base model
+    adapter_dir = "./model_adapters"
+
     print(f"--- Loading Model ({model_id}) ---")
 
     tokenizer = AutoTokenizer.from_pretrained(model_id)
     model = AutoModelForCausalLM.from_pretrained(
         model_id,
-        dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
+        torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
         device_map="auto" if torch.cuda.is_available() else None
     )
 
+    if os.path.exists(adapter_dir) and os.path.exists(os.path.join(adapter_dir, "adapter_config.json")):
+        print(f"Found trained parameter files in {adapter_dir}. Loading adapters...")
+        model = PeftModel.from_pretrained(model, adapter_dir)
+        print("Trained parameters applied successfully.")
+    else:
+        print("No trained parameter files found. Using the base model.")
+
+    # Apply TurboQuant
     tq = TurboQuantizer(enable=True)
     model = tq.apply(model)
 
     print("\nModel loaded successfully! You can now chat with the AI.")
     print("Type 'quit' or 'exit' to stop the chat.\n")
 
-    # 4. CLI Chat Loop
+    # 3. CLI Chat Loop
     device = "cuda" if torch.cuda.is_available() else "cpu"
     messages = [{"role": "system", "content": "You are a helpful assistant."}]
 
